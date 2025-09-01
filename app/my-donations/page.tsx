@@ -6,6 +6,7 @@ import useSWR from "swr"
 import { FoodCard } from "@/components/food-card"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
+import { CardSkeleton } from "@/components/ui/card-skeleton"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,8 +20,11 @@ import {
 
 function MyDonationsContent() {
   const fetcher = useAuthedFetcher()
-  const { user } = useAuth()
-  const { data, isLoading, mutate } = useSWR(`/api/posts?page=1&limit=100&includeRequested=false`, fetcher)
+  const { user, loading: authLoading, signInGoogle } = useAuth()
+  const { data, isLoading, mutate } = useSWR(
+    user ? `/api/posts?page=1&limit=100&includeRequested=false` : null,
+    fetcher
+  )
   const mine = (data?.data || []).filter((p: any) => p.donorId === user?.uid)
 
   const [savingId, setSavingId] = useState<string | null>(null)
@@ -50,36 +54,60 @@ function MyDonationsContent() {
     }
   }
 
+  if (authLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 text-center">
+        <h1 className="text-2xl font-bold">Sign In Required</h1>
+        <p className="mt-2 text-muted-foreground">Please sign in to view and manage your donations.</p>
+        <Button onClick={() => signInGoogle()} className="mt-4">
+          Sign in with Google
+        </Button>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
-      <h1 className="text-2xl font-bold">My Donations</h1>
+      <div className="mb-8 space-y-2">
+        <h1 className="text-3xl font-bold tracking-tight">My Donations</h1>
+        <p className="text-muted-foreground">
+          Manage your food donations and track their status.
+        </p>
+      </div>
+
       {isLoading ? (
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-64 animate-pulse rounded-lg bg-muted" />
+            <CardSkeleton key={i} />
           ))}
         </div>
       ) : mine.length === 0 ? (
-        <p className="mt-4 text-muted-foreground">No posts yet. Add your first donation.</p>
+        <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed">
+          <p className="text-muted-foreground mb-4">You haven't made any donations yet.</p>
+          <Button onClick={() => location.assign('/add')}>Add Your First Donation</Button>
+        </div>
       ) : (
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {mine.map((p: any) => (
-            <div key={p._id} className="flex flex-col">
-              <FoodCard data={{ ...p, requestedByMe: false }} showActions={false} isOwner onChanged={() => mutate()} />
-              <div className="mt-2 flex gap-2">
-                <Button size="sm" variant="secondary" onClick={() => location.assign(`/add?id=${p._id}`)}>
-                  Edit
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="destructive" 
-                  onClick={() => handleDeleteClick(p._id)} 
-                  disabled={savingId === p._id}
-                >
-                  {savingId === p._id ? "Deleting..." : "Delete"}
-                </Button>
-              </div>
-            </div>
+            <FoodCard 
+              key={p._id} 
+              data={{ ...p, requestedByMe: false }} 
+              showActions={false} 
+              isOwner 
+              showOwnerActions={true}
+              onChanged={() => mutate()}
+              onDelete={async () => {
+                handleDeleteClick(p._id)
+              }}
+            />
           ))}
         </div>
       )}

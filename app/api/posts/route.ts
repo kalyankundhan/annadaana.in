@@ -11,7 +11,26 @@ export async function GET(req: NextRequest) {
   const page = Number(searchParams.get("page") || 1)
   const limit = Number(searchParams.get("limit") || 10)
   const includeRequested = searchParams.get("includeRequested") === "true"
+  const search = searchParams.get("search") || ""
+  const sort = searchParams.get("sort") || "createdAt"
   const skip = (page - 1) * limit
+  
+  // Build filter
+  const filter: any = {}
+  if (search) {
+    filter.$or = [
+      { foodName: { $regex: search, $options: 'i' } },
+      { locationText: { $regex: search, $options: 'i' } }
+    ]
+  }
+  
+  // Build sort
+  const sortOption: any = {}
+  if (sort === 'expiryAt') {
+    sortOption.expiryAt = 1 // Sort by expiry date ascending (earliest first)
+  } else {
+    sortOption.createdAt = -1 // Default: sort by newest first
+  }
 
   const authHeader = req.headers.get("authorization") || undefined
   let uid: string | null = null
@@ -23,7 +42,7 @@ export async function GET(req: NextRequest) {
     uid = null
   }
 
-  const posts = await PostModel.find({}).sort({ createdAt: -1 }).skip(skip).limit(limit).lean()
+  const posts = await PostModel.find(filter).sort(sortOption).skip(skip).limit(limit).lean()
   let requestedMap: Record<string, boolean> = {}
   if (includeRequested && uid) {
     const postIds = posts.map((p) => p._id)

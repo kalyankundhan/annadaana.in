@@ -1,9 +1,13 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
 import { useAuth, useAuthedFetcher } from "./auth-provider"
 import { useState, useEffect } from "react"
+import { CalendarDays, MapPin, Clock } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { TooltipProvider } from "@radix-ui/react-tooltip"
 
 export type FoodCardData = {
   _id: string
@@ -23,11 +27,15 @@ export function FoodCard({
   onChanged,
   showActions = true,
   isOwner = false,
+  showOwnerActions = false,
+  onDelete,
 }: {
   data: FoodCardData
   onChanged?: () => void
   showActions?: boolean
   isOwner?: boolean
+  showOwnerActions?: boolean
+  onDelete?: () => Promise<void> | void
 }) {
   const { user } = useAuth()
   const fetcher = useAuthedFetcher()
@@ -54,40 +62,118 @@ export function FoodCard({
   }
 
   return (
-    <div className="flex flex-col rounded-lg border bg-card text-card-foreground shadow-sm">
-      <div className="relative aspect-video w-full overflow-hidden rounded-t-lg bg-muted">
-        <Image
-          src={data.photoUrl || "/placeholder.svg?height=200&width=400&query=food+donation"}
-          alt={data.foodName}
-          fill
-          className="object-cover"
-        />
-      </div>
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="text-pretty text-base font-semibold">{data.foodName}</h3>
-          {data.completed ? (
-            <span className="rounded bg-green-600/10 px-2 py-0.5 text-xs text-green-700">Completed</span>
-          ) : null}
-        </div>
-        <p className="text-sm text-muted-foreground line-clamp-3 text-ellipsis overflow-hidden">
-          {data.description.split(' ').length > 25 
-            ? `${data.description.split(' ').slice(0, 25).join(' ')}...` 
-            : data.description}
-        </p>
-        <div className="mt-auto grid gap-1 text-sm">
-          {!data.completed && (
-            <ExpiryStatusBadge expiryAt={data.expiryAt} />
+    <div className="group flex h-full flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md">
+      <div className="relative aspect-video w-full overflow-hidden bg-muted">
+        <div className="relative h-full w-full overflow-hidden">
+          <Image
+            src={data.photoUrl || "/placeholder.svg?height=200&width=400&query=food+donation"}
+            alt={data.foodName}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+          {data.completed && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+              <Badge variant="secondary" className="bg-green-600/90 text-white hover:bg-green-600/80">
+                Claimed
+              </Badge>
+            </div>
           )}
-          <div>
-            <span className="text-muted-foreground">Location:</span> {data.locationText}
+        </div>
+      </div>
+      
+      <div className="flex flex-1 flex-col p-4">
+        <div className="flex-1 space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-lg font-bold leading-tight tracking-tight text-foreground">
+              {data.foodName}
+            </h3>
+          </div>
+          
+          <p className="text-muted-foreground line-clamp-3 leading-relaxed">
+            {data.description.split(' ').length > 25 
+              ? `${data.description.split(' ').slice(0, 25).join(' ')}...` 
+              : data.description}
+          </p>
+        </div>
+        
+        <div className="mt-4 space-y-3 pt-2 border-t">
+          {!data.completed && (
+            <div className="flex items-center gap-2 text-sm">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <ExpiryStatusBadge expiryAt={data.expiryAt} />
+            </div>
+          )}
+          
+          <div className="flex items-start gap-2 text-sm">
+            <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0 text-muted-foreground" />
+            <span className="text-muted-foreground line-clamp-2">{data.locationText}</span>
+          </div>
+          
+          <div className="mt-4 space-y-2">
+            {showActions && !computedIsOwner && !data.completed && (
+              <Button 
+                onClick={toggleRequest} 
+                disabled={loading} 
+                className="w-full"
+                size="sm"
+              >
+                {loading ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-background border-t-transparent" />
+                    Please wait...
+                  </span>
+                ) : data.requestedByMe ? (
+                  "Cancel Request"
+                ) : (
+                  "Request This Food"
+                )}
+              </Button>
+            )}
+            
+            {showOwnerActions && onDelete && (
+              <TooltipProvider>
+                <div className="flex gap-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span tabIndex={0} className="w-full">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => {
+                            if (!data.completed && new Date(data.expiryAt) >= new Date()) {
+                              location.assign(`/add?id=${data._id}`)
+                            }
+                          }}
+                          disabled={data.completed || new Date(data.expiryAt) < new Date()}
+                        >
+                          Edit
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    {(data.completed || new Date(data.expiryAt) < new Date()) && (
+                      <TooltipContent>
+                        <p className="text-sm">
+                          {data.completed
+                            ? "This donation has been completed and cannot be edited."
+                            : "This donation has expired and cannot be edited."}
+                        </p>
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={onDelete}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </TooltipProvider>
+            )}
           </div>
         </div>
-        {showActions && !computedIsOwner && !data.completed ? (
-          <Button onClick={toggleRequest} disabled={loading} className="mt-2">
-            {loading ? "Please wait..." : data.requestedByMe ? "Cancel Request" : "Request"}
-          </Button>
-        ) : null}
       </div>
     </div>
   )
@@ -127,37 +213,34 @@ function ExpiryStatusBadge({ expiryAt }: { expiryAt: string }) {
   }, [expiryAt, timeLeft?.hours])
 
   const getStatusInfo = () => {
-    if (!timeLeft) return { text: 'Loading...', className: 'bg-gray-100 text-gray-800' }
+    if (!timeLeft) return { text: 'Loading...', variant: 'secondary' as const }
     
     if (timeLeft.isExpired) {
-      return { text: 'Expired', className: 'bg-red-100 text-red-800' }
+      return { text: 'Expired', variant: 'destructive' as const }
     }
     
     if (timeLeft.hours >= 24) {
-      return { text: 'Available', className: 'bg-green-100 text-green-800' }
+      return { text: 'Available', variant: 'secondary' as const }
     }
     
     if (timeLeft.hours > 0) {
       return { 
-        text: `Expires in ${timeLeft.hours} hour${timeLeft.hours > 1 ? 's' : ''}`, 
-        className: 'bg-amber-100 text-amber-800' 
+        text: `${timeLeft.hours}h ${timeLeft.minutes}m left`, 
+        variant: 'default' as const
       }
     }
     
     return { 
-      text: `Expires in ${timeLeft.minutes} minute${timeLeft.minutes !== 1 ? 's' : ''}`, 
-      className: 'bg-amber-100 text-amber-800' 
+      text: `${timeLeft.minutes}m left`, 
+      variant: 'default' as const
     }
   }
 
   const status = getStatusInfo()
 
   return (
-    <div className="flex items-center">
-      <span className="text-muted-foreground text-sm mr-1">Status:</span>
-      <span className={`text-xs ${status.className.split(' ').filter(c => c.includes('text-')).join(' ')}`}>
-        {status.text}
-      </span>
-    </div>
+    <Badge variant={status.variant} className="text-xs font-medium">
+      {status.text}
+    </Badge>
   )
 }

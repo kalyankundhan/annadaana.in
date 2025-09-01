@@ -3,10 +3,16 @@
 import { Navbar } from "@/components/navbar"
 import { useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Card, CardHeader, CardContent, CardFooter } from "@/components/ui/card"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useState, useEffect } from "react"
+import { PageLoader } from "@/components/ui/page-loader"
 import { useProfile } from "@/contexts/profile-context"
 
-function ProfileContent() {
+export default function ProfilePage() {
   const { user, loading: authLoading, getIdToken } = useAuth()
   const { profile, isLoading, error: fetchError, mutate } = useProfile()
   const [form, setForm] = useState({ name: "", email: "", phone: "", address: "" })
@@ -25,7 +31,7 @@ function ProfileContent() {
         address: profile.address || ""
       })
     }
-  }, [profile, user?.displayName])
+  }, [profile, user?.displayName, form.email])
 
   const validatePhoneNumber = (value: string) => {
     // Allow only digits and remove any non-digit characters
@@ -96,83 +102,117 @@ function ProfileContent() {
   }
 
   return (
-    <main className="mx-auto max-w-xl px-4 py-6">
-      <h1 className="text-2xl font-bold">Profile</h1>
-      {showLoading || !profile?.email ? (
-        <div className="mt-8 flex flex-col items-center justify-center space-y-6 py-8">
-          <div className="relative h-16 w-16">
-            <div className="absolute inset-0 rounded-full border-4 border-t-primary border-r-primary border-b-transparent border-l-transparent animate-spin"></div>
-            <div className="absolute inset-2 rounded-full border-4 border-t-primary/50 border-r-primary/50 border-b-transparent border-l-transparent animate-spin animation-delay-200"></div>
-          </div>
-          <div className="text-center space-y-2">
-            <p className="text-lg font-medium text-foreground">Loading your profile</p>
-            <p className="text-sm text-muted-foreground">Just a moment while we fetch your details...</p>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-4 grid gap-4">
-          <label className="grid gap-1">
-            <span className="text-sm">Name</span>
-            <input
-              className="rounded-md border px-3 py-2 text-sm"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </label>
-          <label className="grid gap-1">
-            <span className="text-sm">Gmail</span>
-            <input className="rounded-md border bg-muted px-3 py-2 text-sm" value={form.email} disabled />
-          </label>
-          <label className="grid gap-1">
-            <span className="text-sm">Phone Number</span>
-            <input
-              className={`rounded-md border px-3 py-2 text-sm ${error ? 'border-red-500' : ''}`}
-              value={form.phone}
-              onChange={(e) => {
-                const value = e.target.value
-                const digitsOnly = value.replace(/\D/g, '')
-                
-                // Only update if the input is valid (up to 10 digits)
-                if (digitsOnly.length <= 10) {
-                  setForm({ ...form, phone: digitsOnly })
-                  if (error) setError("")
-                }
-              }}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={10}
-              placeholder="Enter phone number"
-            />
-            {error && <p className="text-sm text-red-500">{error}</p>}
-          </label>
-          <label className="grid gap-1">
-            <span className="text-sm">Address</span>
-            <input
-              className="rounded-md border px-3 py-2 text-sm"
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-            />
-          </label>
-          <div className="flex gap-2">
-            <Button 
-              onClick={save} 
-              disabled={saving || !hasChanges()}
-              className={`${!hasChanges() ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              {saving ? "Saving updates..." : "Save changes"}
-            </Button>
-          </div>
-        </div>
-      )}
-    </main>
-  )
-}
-
-export default function ProfilePage() {
-  return (
-    <>
+    <div className="min-h-screen bg-background">
       <Navbar />
-      <ProfileContent />
-    </>
+      <main className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 py-6">
+        <h1 className="text-3xl font-bold tracking-tight mb-2">Profile</h1>
+        <p className="text-muted-foreground mb-6">Manage your account information and settings</p>
+        
+        {showLoading || !profile?.email ? (
+          <Card>
+            <CardHeader className="flex flex-row items-center gap-4">
+              <Skeleton className="h-16 w-16 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-48" />
+                <Skeleton className="h-4 w-64" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Skeleton className="h-10 w-32" />
+            </CardFooter>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader className="flex flex-row items-center gap-4">
+              <Avatar className="h-16 w-16">
+                <AvatarImage src={user?.photoURL || ''} />
+                <AvatarFallback className="text-xl">
+                  {form.name ? form.name[0].toUpperCase() : user?.email?.[0].toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-sm text-muted-foreground">{form.email}</p>
+              </div>
+            </CardHeader>
+            
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="Enter your full name"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  value={form.phone}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    const digitsOnly = value.replace(/\D/g, '')
+                    
+                    if (digitsOnly.length <= 10) {
+                      setForm({ ...form, phone: digitsOnly })
+                      if (error) setError("")
+                    }
+                  }}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={10}
+                  placeholder="Enter 10-digit phone number"
+                  className={error ? 'border-destructive' : ''}
+                />
+                {error && <p className="text-sm text-destructive mt-1">{error}</p>}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  placeholder="Enter your full address"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Your primary address (optional)
+                </p>
+              </div>
+            </CardContent>
+            
+            <CardFooter className="flex justify-end border-t pt-4">
+              <Button 
+                onClick={save} 
+                disabled={saving || !hasChanges()}
+                className="min-w-32"
+              >
+                {saving ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </>
+                ) : 'Save changes'}
+              </Button>
+            </CardFooter>
+          </Card>
+        )}
+      </main>
+    </div>
   )
 }

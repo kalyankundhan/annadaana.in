@@ -3,6 +3,10 @@
 import { Navbar } from "@/components/navbar"
 import { AuthProvider, useAuthedFetcher, useAuth } from "@/components/auth-provider"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { ImageUploader } from "@/components/image-uploader"
 import { LocationInput } from "@/components/location-input"
 import { useEffect, useState } from "react"
@@ -22,11 +26,22 @@ function AddContent() {
   const editId = search.get("id")
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isDetectingLocation, setIsDetectingLocation] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [signInError, setSignInError] = useState<string | null>(null)
+  const [initialForm, setInitialForm] = useState({
+    foodName: "",
+    description: "",
+    photoUrl: "",
+    expiryAt: "",
+    location: { text: "", lat: undefined as number | undefined, lng: undefined as number | undefined } as Location,
+  })
+  
+  const [uploaderKey, setUploaderKey] = useState(Date.now());
+  
   const [form, setForm] = useState({
     foodName: "",
     description: "",
@@ -51,19 +66,37 @@ function AddContent() {
       try {
         const res = await fetcher(`/api/posts/${editId}`)
         const p = res.data
-        setForm({
+        const initialData = {
           foodName: p.foodName,
           description: p.description,
           photoUrl: p.photoUrl,
           expiryAt: new Date(p.expiryAt).toISOString().slice(0, 16),
           location: { text: p.locationText, lat: p.lat, lng: p.lng },
-        })
+        }
+        setForm(initialData)
+        setInitialForm(initialData)
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [editId, fetcher])
+  }, [editId]) // Removed fetcher from dependencies to prevent infinite loops
+
+  // Reset form when switching from edit to add mode
+  useEffect(() => {
+    if (!editId) {
+      setForm({
+        foodName: "",
+        description: "",
+        photoUrl: "",
+        expiryAt: "",
+        location: { text: "", lat: undefined, lng: undefined },
+      });
+      setTouched({});
+      setErrors({});
+      setUploaderKey(Date.now()); // Force remount of ImageUploader
+    }
+  }, [editId]);
 
   const handleSignIn = async () => {
     try {
@@ -89,27 +122,37 @@ function AddContent() {
   // Show sign in prompt if not authenticated
   if (!user) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        <h1 className="text-2xl font-bold mb-6">Sign In Required</h1>
-        <div className="bg-white rounded-lg shadow p-6">
-          <p className="mb-6">Please sign in with your Google account to add a food donation.</p>
-          <Button 
-            onClick={handleSignIn}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-            disabled={authLoading}
-          >
-            {authLoading ? 'Signing in...' : 'Sign in with Google'}
-          </Button>
-          {signInError && (
-            <p className="mt-3 text-red-500 text-sm">{signInError}</p>
-          )}
-        </div>
-      </div>
+      <main className="mx-auto max-w-4xl px-4 py-6 text-center">
+        <h1 className="text-2xl font-bold">Sign In Required</h1>
+        <p className="mt-2 text-muted-foreground">Please sign in with your Google account to add a food donation.</p>
+        <Button onClick={handleSignIn} className="mt-4" disabled={authLoading}>
+          {authLoading ? 'Signing in...' : 'Sign in with Google'}
+        </Button>
+        {signInError && (
+          <p className="mt-3 text-sm text-destructive">{signInError}</p>
+        )}
+      </main>
     )
   }
   
-  // Disable form when uploading image or detecting location
-  const isFormDisabled = isUploading || isDetectingLocation
+  // Check if form has any changes
+  const hasChanges = () => {
+    return (
+      form.foodName !== initialForm.foodName ||
+      form.description !== initialForm.description ||
+      form.photoUrl !== initialForm.photoUrl ||
+      form.expiryAt !== initialForm.expiryAt ||
+      form.location.text !== initialForm.location.text ||
+      form.location.lat !== initialForm.location.lat ||
+      form.location.lng !== initialForm.location.lng
+    )
+  }
+
+  // Disable form fields when uploading image or detecting location
+  const areFieldsDisabled = isUploading || isDetectingLocation
+  
+  // Disable submit button when form is being processed or no changes in edit mode
+  const isSubmitDisabled = areFieldsDisabled || (!!editId && !hasChanges())
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -145,7 +188,7 @@ function AddContent() {
     if (!validateForm()) {
       return
     }
-    setLoading(true)
+    setIsSubmitting(true)
     try {
       if (editId) {
         await fetcher(`/api/posts/${editId}`, {
@@ -180,70 +223,73 @@ function AddContent() {
     } catch (e: any) {
       alert(e.message || "Failed")
     } finally {
-      setLoading(false)
+      setIsSubmitting(false)
     }
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 lg:px-8">
-      <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-          {editId ? "Edit Donation" : "Add Food Donation"}
+    <main className="container mx-auto max-w-2xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mb-8 space-y-2 text-center">
+        <h1 className="text-3xl font-bold tracking-tight">
+          {editId ? "Edit Donation" : "Share Your Surplus Food"}
         </h1>
-        <p className="mt-2 text-sm text-gray-600">
-          {editId ? "Update your food donation details" : "Share your excess food with those in need"}
+        <p className="text-muted-foreground">
+          {editId ? "Update your food donation details" : "Fill out the details below to create your donation listing."}
         </p>
       </div>
       
-      <div className="space-y-6 rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200 sm:rounded-2xl sm:p-8">
+      <Card className="overflow-hidden">
+        <CardHeader>
+          <CardTitle>{editId ? "Edit Donation" : "Donation Details"}</CardTitle>
+          <CardDescription>
+            {editId ? "Update the details of your food donation" : "Provide information about the food you're sharing"}
+          </CardDescription>
+        </CardHeader>
+        
+        <CardContent className="space-y-6">
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <Label htmlFor="foodName">
             Food Name <span className="text-destructive">*</span>
-          </label>
-          <div className="mt-1">
-            <input
-              type="text"
-              className={`block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm ${
-                touched.foodName && errors.foodName ? 'border-red-500' : 'border-gray-300'
-              } ${isFormDisabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'} px-4 py-2.5`}
-              value={form.foodName}
-              onChange={(e) => !isFormDisabled && setForm({ ...form, foodName: e.target.value })}
-              onBlur={() => !isFormDisabled && handleBlur('foodName')}
-              placeholder="e.g., Freshly made pasta"
-              disabled={isFormDisabled}
-            />
-          </div>
+          </Label>
+          <Input
+            id="foodName"
+            type="text"
+            value={form.foodName}
+            onChange={(e) => !areFieldsDisabled && setForm({ ...form, foodName: e.target.value })}
+            onBlur={() => !areFieldsDisabled && handleBlur('foodName')}
+            placeholder="e.g., Freshly made pasta"
+            disabled={areFieldsDisabled}
+            className={touched.foodName && errors.foodName ? 'border-destructive' : ''}
+          />
           {touched.foodName && errors.foodName && (
-            <p className="mt-1 text-sm text-destructive">{errors.foodName}</p>
+            <p className="text-sm text-destructive">{errors.foodName}</p>
           )}
         </div>
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <Label htmlFor="description">
             Description <span className="text-destructive">*</span>
-          </label>
-          <div className="mt-1">
-            <textarea
-              rows={4}
-              className={`block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm ${
-                touched.description && errors.description ? 'border-red-500' : 'border-gray-300'
-              } ${isFormDisabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'} px-4 py-2.5`}
-              value={form.description}
-              onChange={(e) => !isFormDisabled && setForm({ ...form, description: e.target.value })}
-              onBlur={() => !isFormDisabled && handleBlur('description')}
-              placeholder="Provide details about the food (ingredients, quantity, packaging, etc.)"
-              disabled={isFormDisabled}
-            />
-          </div>
+          </Label>
+          <Textarea
+            id="description"
+            rows={4}
+            value={form.description}
+            onChange={(e) => !areFieldsDisabled && setForm({ ...form, description: e.target.value })}
+            onBlur={() => !areFieldsDisabled && handleBlur('description')}
+            placeholder="Provide details about the food (ingredients, quantity, packaging, etc.)"
+            disabled={areFieldsDisabled}
+            className={touched.description && errors.description ? 'border-destructive' : ''}
+          />
           {touched.description && errors.description && (
-            <p className="mt-1 text-sm text-destructive">{errors.description}</p>
+            <p className="text-sm text-destructive">{errors.description}</p>
           )}
         </div>
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <Label>
             Photo <span className="text-destructive">*</span>
-          </label>
+          </Label>
           <div className="space-y-2">
             <ImageUploader 
+              key={uploaderKey}
               onUploaded={(url) => {
                 setForm(prev => ({ ...prev, photoUrl: url }))
                 setErrors(prev => ({ ...prev, photoUrl: '' }))
@@ -255,47 +301,44 @@ function AddContent() {
               }}
               initialImageUrl={form.photoUrl}
               className={touched.photoUrl && errors.photoUrl ? '!border-destructive' : ''}
-              disabled={isFormDisabled}
+              disabled={areFieldsDisabled}
             />
             {touched.photoUrl && errors.photoUrl && (
-              <p className="mt-1 text-sm text-destructive">{errors.photoUrl}</p>
+              <p className="text-sm text-destructive">{errors.photoUrl}</p>
             )}
             {!form.photoUrl && !isUploading && (
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Upload a clear photo of the food (max 5MB, JPG/PNG)
               </p>
             )}
           </div>
         </div>
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <Label htmlFor="expiryAt">
             Expiry Date & Time <span className="text-destructive">*</span>
-          </label>
-          <div className="mt-1">
-            <input
-              type="datetime-local"
-              className={`block w-full max-w-xs rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm ${
-                touched.expiryAt && errors.expiryAt ? 'border-red-500' : 'border-gray-300'
-              } ${isFormDisabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'} px-4 py-2.5`}
-              value={form.expiryAt}
-              onChange={(e) => !isFormDisabled && setForm({ ...form, expiryAt: e.target.value })}
-              onBlur={() => !isFormDisabled && handleBlur('expiryAt')}
-              disabled={isFormDisabled}
-            />
-          </div>
+          </Label>
+          <Input
+            id="expiryAt"
+            type="datetime-local"
+            className={`max-w-xs ${touched.expiryAt && errors.expiryAt ? 'border-destructive' : ''}`}
+            value={form.expiryAt}
+            onChange={(e) => !areFieldsDisabled && setForm({ ...form, expiryAt: e.target.value })}
+            onBlur={() => !areFieldsDisabled && handleBlur('expiryAt')}
+            disabled={areFieldsDisabled}
+          />
           {touched.expiryAt && errors.expiryAt && (
-            <p className="mt-1 text-sm text-destructive">{errors.expiryAt}</p>
+            <p className="text-sm text-destructive">{errors.expiryAt}</p>
           )}
         </div>
         <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <Label>
             Pickup Location <span className="text-destructive">*</span>
-          </label>
-          <div className="relative mt-1">
+          </Label>
+          <div className="relative">
             <LocationInput 
               value={form.location} 
               onChange={(v: Location) => {
-                if (isFormDisabled) return;
+                if (areFieldsDisabled) return;
                 setForm(prev => ({
                   ...prev,
                   location: {
@@ -313,66 +356,70 @@ function AddContent() {
                 }
               }}
               onDetectStart={() => {
-                if (isFormDisabled) return;
+                if (areFieldsDisabled) return;
                 setIsDetectingLocation(true);
               }}
               onDetectEnd={() => {
                 setIsDetectingLocation(false);
               }}
-              className={`block w-full rounded-md shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm ${
-                touched.location && errors.location ? 'border-red-500' : 'border-gray-300'
-              } ${isFormDisabled ? 'bg-gray-100 cursor-not-allowed opacity-75' : 'bg-white'}`}
-              onBlur={() => !isFormDisabled && handleBlur('location')}
+              className={`w-full ${touched.location && errors.location ? 'border-destructive' : ''} ${
+                areFieldsDisabled ? 'opacity-75' : ''
+              }`}
+              onBlur={() => !areFieldsDisabled && handleBlur('location')}
               placeholder={isDetectingLocation ? 'Detecting location...' : 'Enter address or click to select on map'}
-              disabled={isFormDisabled}
+              disabled={areFieldsDisabled}
             />
             {isDetectingLocation && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/50">
-                <div className="rounded-md bg-white px-3 py-1.5 text-sm font-medium shadow-sm">
+              <div className="absolute inset-0 flex items-center justify-center rounded-md bg-background/80">
+                <div className="rounded-md bg-background px-3 py-1.5 text-sm font-medium shadow-sm border">
                   Detecting location...
                 </div>
               </div>
             )}
           </div>
           {touched.location && errors.location ? (
-            <p className="mt-1 text-sm text-destructive">{errors.location}</p>
+            <p className="text-sm text-destructive">{errors.location}</p>
           ) : (
-            <p className="mt-1 text-xs text-gray-500">
+            <p className="text-sm text-muted-foreground">
               Where can the food be picked up from?
             </p>
           )}
         </div>
-        <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end sm:items-center sm:gap-4">
+        </CardContent>
+        
+        <CardFooter className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end sm:gap-4 border-t px-6 py-4">
           <Button 
             type="button"
             variant="outline" 
             onClick={() => window.history.back()}
-            className="w-full sm:w-auto h-10"
-            disabled={isFormDisabled}
+            className="w-full sm:w-auto"
+            disabled={areFieldsDisabled}
           >
             Cancel
           </Button>
           <Button
             type="button"
-            className="w-full sm:w-auto h-10 relative min-w-[150px]"
+            className="w-full sm:w-auto relative min-w-[150px]"
             onClick={submit}
-            disabled={loading || isFormDisabled}
+            disabled={loading || isSubmitting || isSubmitDisabled}
           >
             {(isUploading || isDetectingLocation) && (
-              <div className="absolute inset-0 flex items-center justify-center bg-primary/90">
+              <div className="absolute inset-0 flex items-center justify-center bg-primary/90 rounded-md">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
               </div>
             )}
             <span className={isUploading || isDetectingLocation ? 'invisible' : ''}>
-              {loading ? (editId ? 'Saving...' : 'Submitting...') : (editId ? 'Update Donation' : 'Submit Donation')}
+              {isSubmitting ? (editId ? 'Saving...' : 'Submitting...') : (editId ? 'Update Donation' : 'Submit Donation')}
             </span>
           </Button>
-        </div>
-      </div>
+        </CardFooter>
+      </Card>
       
-      <div className="mt-8 text-center text-sm text-gray-500">
-        <p>By submitting, you agree to our <a href="/terms" className="font-medium text-primary hover:text-primary/90">Terms of Service</a> and <a href="/privacy" className="font-medium text-primary hover:text-primary/90">Privacy Policy</a>.</p>
-      </div>
+      <p className="mt-6 text-center text-sm text-muted-foreground">
+        By submitting, you agree to our{' '}
+        <a href="/terms" className="font-medium text-primary hover:underline">Terms of Service</a> and{' '}
+        <a href="/privacy" className="font-medium text-primary hover:underline">Privacy Policy</a>.
+      </p>
     </main>
   )
 }
