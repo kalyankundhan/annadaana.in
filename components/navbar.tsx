@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { usePathname, useRouter } from "next/navigation"
 import { Menu, LogOut, User, Home, Utensils, HeartHandshake, MessageSquare, Plus, X } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export function Navbar() {
   const { 
@@ -29,6 +30,10 @@ export function Navbar() {
     clearSignInError 
   } = useAuth()
   const [localError, setLocalError] = useState<string | null>(null)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  
+  const closeMenu = () => setIsMenuOpen(false)
+  const toggleMenu = () => setIsMenuOpen(!isMenuOpen)
   
   // Auto-dismiss error messages after 3 seconds
   useEffect(() => {
@@ -156,11 +161,17 @@ export function Navbar() {
 
         {/* Mobile Menu Button */}
         <div className="flex items-center md:hidden">
-          <Sheet>
+          <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Toggle menu</span>
+              <Button variant="ghost" size="icon" className="relative">
+                <span className={`absolute inset-0 flex items-center justify-center transition-opacity ${isMenuOpen ? 'opacity-0' : 'opacity-100'}`}>
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">Open menu</span>
+                </span>
+                <span className={`absolute inset-0 flex items-center justify-center transition-opacity ${isMenuOpen ? 'opacity-100' : 'opacity-0'}`}>
+                  <X className="h-6 w-6" />
+                  <span className="sr-only">Close menu</span>
+                </span>
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-[300px] sm:w-[400px]">
@@ -171,28 +182,23 @@ export function Navbar() {
                     <FoodShareLogo />
                     <span className="font-bold">FoodShare</span>
                   </Link>
-                  <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <X className="h-4 w-4" />
-                      <span className="sr-only">Close menu</span>
-                    </Button>
-                  </SheetTrigger>
+
                 </div>
                 
                 <div className="flex-1 space-y-4">
-                  <MobileNavLink href="/" icon={<Home className="h-4 w-4" />}>
+                  <MobileNavLink href="/" icon={<Home className="h-4 w-4" />} onClick={closeMenu}>
                     Home
                   </MobileNavLink>
-                  <MobileNavLink href="/browse" icon={<Utensils className="h-4 w-4" />}>
+                  <MobileNavLink href="/browse" icon={<Utensils className="h-4 w-4" />} onClick={closeMenu}>
                     Browse Food
                   </MobileNavLink>
-                  <MobileNavLink href="/my-donations" icon={<HeartHandshake className="h-4 w-4" />}>
+                  <MobileNavLink href="/my-donations" icon={<HeartHandshake className="h-4 w-4" />} onClick={closeMenu}>
                     My Donations
                   </MobileNavLink>
-                  <MobileNavLink href="/request" icon={<MessageSquare className="h-4 w-4" />}>
+                  <MobileNavLink href="/request" icon={<MessageSquare className="h-4 w-4" />} onClick={closeMenu}>
                     Requests
                   </MobileNavLink>
-                  <MobileNavLink href="/profile" icon={<User className="h-4 w-4" />}>
+                  <MobileNavLink href="/profile" icon={<User className="h-4 w-4" />} onClick={closeMenu}>
                     Profile
                   </MobileNavLink>
                 </div>
@@ -275,23 +281,30 @@ function NavLink({
 }
 
 interface MobileNavLinkProps {
-  href: string;
-  children: React.ReactNode;
-  icon?: React.ReactElement<{ className?: string }>;
+  href: string
+  children: React.ReactNode
+  icon?: React.ReactElement<{ className?: string }>
+  className?: string
+  onClick?: () => void
 }
 
 function MobileNavLink({ 
-  href, 
+  href,
   children, 
-  icon
+  icon,
+  className,
+  onClick
 }: MobileNavLinkProps) {
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-      onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape'}))}
+      className={cn(
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+        className
+      )}
+      onClick={onClick}
     >
-      {icon && React.cloneElement(icon, { className: 'h-4 w-4' })}
+      {icon && React.cloneElement(icon, { className: "h-4 w-4" })}
       <span>{children}</span>
     </Link>
   )
