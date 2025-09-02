@@ -13,7 +13,7 @@ import { PageLoader } from "@/components/ui/page-loader"
 import { useProfile } from "@/contexts/profile-context"
 
 export default function ProfilePage() {
-  const { user, loading: authLoading, getIdToken } = useAuth()
+  const { user, loading: authLoading, signInGoogle, getIdToken } = useAuth()
   const { profile, isLoading, error: fetchError, mutate } = useProfile()
   const [form, setForm] = useState({ name: "", email: "", phone: "", address: "" })
   const [saving, setSaving] = useState(false)
@@ -101,6 +101,30 @@ export default function ProfilePage() {
     }
   }
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <PageLoader />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 py-6 text-center">
+          <h1 className="text-3xl font-bold tracking-tight mb-2">Sign In Required</h1>
+          <p className="text-muted-foreground mb-6">Please sign in to view and manage your profile.</p>
+          <Button onClick={signInGoogle} className="mt-4">
+            Sign in with Google
+          </Button>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -108,7 +132,7 @@ export default function ProfilePage() {
         <h1 className="text-3xl font-bold tracking-tight mb-2">Profile</h1>
         <p className="text-muted-foreground mb-6">Manage your account information and settings</p>
         
-        {showLoading || !profile?.email ? (
+        {isLoading ? (
           <Card>
             <CardHeader className="flex flex-row items-center gap-4">
               <Skeleton className="h-16 w-16 rounded-full" />

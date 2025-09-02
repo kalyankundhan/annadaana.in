@@ -11,6 +11,7 @@ import { ImageUploader } from "@/components/image-uploader"
 import { LocationInput } from "@/components/location-input"
 import { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
+import { FormSkeleton } from "@/components/ui/form-skeleton"
 
 type Location = {
   text: string
@@ -110,12 +111,20 @@ function AddContent() {
     }
   }
 
-  // Show loading state while checking auth
-  if (authLoading) {
+  // Show loading state while checking auth or loading edit data
+  if (authLoading || (editId && loading)) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900"></div>
-      </div>
+      <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mb-8 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+            {editId ? 'Edit Donation' : 'Loading...'}
+          </h1>
+          <p className="mt-2 text-sm text-gray-600">
+            {editId ? 'Loading your donation details...' : 'Please wait...'}
+          </p>
+        </div>
+        <FormSkeleton />
+      </main>
     )
   }
 

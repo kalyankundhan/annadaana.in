@@ -7,6 +7,7 @@ import { FoodCard } from "@/components/food-card"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { CardSkeleton } from "@/components/ui/card-skeleton"
+import { PageLoader } from "@/components/ui/page-loader"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,11 +56,7 @@ function MyDonationsContent() {
   }
 
   if (authLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <p>Loading...</p>
-      </div>
-    );
+    return <PageLoader />;
   }
 
   if (!user) {

@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: 'popup-closed' }
       } else if (error.code === 'auth/cancelled-popup-request') {
         // This can happen if multiple popups are opened
-        console.log('Sign-in popup was cancelled')
+        // Sign-in popup was cancelled by user
         return { success: false, error: 'popup-cancelled' }
       } else if (error.code === 'auth/popup-blocked') {
         const message = 'Please allow popups for this website to sign in with Google'

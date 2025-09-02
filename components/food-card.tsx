@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import Image from "next/image"
 import { useAuth, useAuthedFetcher } from "./auth-provider"
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { CalendarDays, MapPin, Clock } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { TooltipProvider } from "@radix-ui/react-tooltip"
@@ -38,6 +39,7 @@ export function FoodCard({
   onDelete?: () => Promise<void> | void
 }) {
   const { user } = useAuth()
+  const router = useRouter()
   const fetcher = useAuthedFetcher()
   const [loading, setLoading] = useState(false)
 
@@ -142,7 +144,7 @@ export function FoodCard({
                           className="w-full"
                           onClick={() => {
                             if (!data.completed && new Date(data.expiryAt) >= new Date()) {
-                              location.assign(`/add?id=${data._id}`)
+                              router.push(`/add?id=${data._id}`)
                             }
                           }}
                           disabled={data.completed || new Date(data.expiryAt) < new Date()}
