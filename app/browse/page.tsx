@@ -94,15 +94,10 @@ function BrowseContent() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {all.map((p: any) => (
-            <FoodCard key={p._id} data={p} onChanged={() => mutate()} />
-          ))}
           {isLoading && !data ? (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {[...Array(6)].map((_, i) => (
-                <CardSkeleton key={i} />
-              ))}
-            </div>
+            [...Array(6)].map((_, i) => (
+              <CardSkeleton key={i} />
+            ))
           ) : (
             all.map((p: any) => (
               <FoodCard key={p._id} data={p} onChanged={() => mutate()} />
