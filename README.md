@@ -1,4 +1,4 @@
-# 🍽️ SharePlate: Reduce Food Wastage
+# 🍽️ FoodShare: Reduce Food Wastage
 
 ## About
 
